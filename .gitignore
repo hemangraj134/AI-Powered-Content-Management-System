@@ -1,0 +1,13 @@
+# --- VIRTUAL ENVIRONMENT ---
+# This is the ONLY thing we must never, ever push.
+# It's system-specific, huge, and will break the project for others.
+.venv/
+
+# --- Common Python Junk ---
+__pycache__/
+*.pyc
+
+# --- Common OS / Editor Junk ---
+.DS_Store
+.vscode/
+.idea/
