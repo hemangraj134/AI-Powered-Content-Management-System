@@ -10,16 +10,17 @@ print("--- Initializing AI Processing Engine ---")
 
 # --- 1. Load the AI Model onto the GPU ---
 # This checks if your GPU is available (which we know it is)
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
+device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"Loading AI model onto device: {device}")
 
 # This is the model that creates the "smart search" vectors
 # The first time this line runs, it will download the model (approx 90MB)
-model = SentenceTransformer('all-MiniLM-L6-v2', device=device)
+model = SentenceTransformer("all-MiniLM-L6-v2", device=device)
 print("AI Model loaded successfully.")
 
 
 # --- 2. Define File Extraction Functions ---
+
 
 def extract_text_from_pdf(filepath):
     """Extracts text from a PDF file."""
@@ -31,6 +32,7 @@ def extract_text_from_pdf(filepath):
         print(f"Error reading PDF {filepath}: {e}")
         return None
 
+
 def extract_text_from_docx(filepath):
     """Extracts text from a .docx file."""
     try:
@@ -40,6 +42,7 @@ def extract_text_from_docx(filepath):
     except Exception as e:
         print(f"Error reading DOCX {filepath}: {e}")
         return None
+
 
 def extract_text_from_image(filepath):
     """Extracts text from an image file using Tesseract OCR."""
@@ -51,17 +54,20 @@ def extract_text_from_image(filepath):
         print(f"Error reading IMAGE {filepath}: {e}")
         return None
 
+
 def extract_text_from_txt(filepath):
     """Extracts text from a plain .txt file."""
     try:
-        with open(filepath, 'r', encoding='utf-8') as f:
+        with open(filepath, "r", encoding="utf-8") as f:
             text = f.read()
         return text
     except Exception as e:
         print(f"Error reading TXT {filepath}: {e}")
         return None
 
+
 # --- 3. Define AI Embedding Function ---
+
 
 def get_embedding(text):
     """Generates a vector embedding for a string of text using the AI model."""
@@ -76,7 +82,9 @@ def get_embedding(text):
         print(f"Error generating embedding: {e}")
         return None
 
+
 # --- 4. Main Orchestrator Function ---
+
 
 def process_document(filepath):
     """
@@ -122,6 +130,7 @@ def process_document(filepath):
         print("Failed to generate embedding.")
         return text, None
 
+
 # --- 5. Test Block ---
 # This code only runs when you execute `python processing.py` directly
 if __name__ == "__main__":
@@ -130,7 +139,7 @@ if __name__ == "__main__":
     # Create a dummy test file
     test_file = "test.txt"
     test_content = "This is a test document about AI-powered content management."
-    with open(test_file, 'w') as f:
+    with open(test_file, "w") as f:
         f.write(test_content)
 
     # Run the full processing pipeline on our test file

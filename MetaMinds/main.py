@@ -1,4 +1,10 @@
-from fastapi import FastAPI, UploadFile, File as FastAPIFile, HTTPException, BackgroundTasks
+from fastapi import (
+    FastAPI,
+    UploadFile,
+    File as FastAPIFile,
+    HTTPException,
+    BackgroundTasks,
+)
 from pydantic import BaseModel
 import uvicorn
 import os
@@ -6,7 +12,14 @@ import shutil
 
 # --- Import from our other files ---
 # We are importing the functions and objects we built
-from database import SessionLocal, engine, Base, File, FileStatus, get_or_create_vector_collection
+from database import (
+    SessionLocal,
+    engine,
+    Base,
+    File,
+    FileStatus,
+    get_or_create_vector_collection,
+)
 from processing import process_document
 
 # --- Create SQL Tables ---
@@ -27,12 +40,14 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 # --- Pydantic Models (for API data validation) ---
 class SearchQuery(BaseModel):
     query: str
-    top_k: int = 5 # Default to returning top 5 results
+    top_k: int = 5  # Default to returning top 5 results
+
 
 class SearchResult(BaseModel):
     filename: str
     category: str | None
     score: float
+
 
 # --- Background Task for Processing ---
 def process_file_in_background(file_id: int, filepath: str):
@@ -64,13 +79,13 @@ def process_file_in_background(file_id: int, filepath: str):
                 embeddings=[vector_embedding],
                 documents=[text_content],
                 metadatas=[{"filename": db_file.filename, "sql_id": file_id}],
-                ids=[str(file_id)] # Chroma needs a string ID
+                ids=[str(file_id)],  # Chroma needs a string ID
             )
 
             # 5. Update SQL status to PROCESSED
             db_file.status = FileStatus.PROCESSED
             # TODO: Add real AI categorization later
-            db_file.category = "Uncategorized" 
+            db_file.category = "Uncategorized"
             db.commit()
             print(f"BACKGROUND TASK: File {file_id} processed and indexed.")
         else:
@@ -89,15 +104,19 @@ def process_file_in_background(file_id: int, filepath: str):
 
 # --- API Endpoints ---
 
+
 @app.get("/")
 def read_root():
     """Simple status check endpoint."""
-    return {"status": "MetaMinds AI Server is running", "gpu_available": torch.cuda.is_available()}
+    return {
+        "status": "MetaMinds AI Server is running",
+        "gpu_available": torch.cuda.is_available(),
+    }
+
 
 @app.post("/upload/")
 async def upload_file(
-    background_tasks: BackgroundTasks,
-    file: UploadFile = FastAPIFile(...)
+    background_tasks: BackgroundTasks, file: UploadFile = FastAPIFile(...)
 ):
     """
     Uploads a file, saves it, and schedules it for AI processing.
@@ -115,30 +134,29 @@ async def upload_file(
             filename=file.filename,
             filepath=filepath,
             file_type=file.content_type,
-            status=FileStatus.PENDING
+            status=FileStatus.PENDING,
         )
         db.add(db_file)
         db.commit()
-        db.refresh(db_file) # Get the new file_id
+        db.refresh(db_file)  # Get the new file_id
 
         # 4. Schedule the HEAVY AI processing to run in the background
         background_tasks.add_task(
-            process_file_in_background, 
-            file_id=db_file.id, 
-            filepath=filepath
+            process_file_in_background, file_id=db_file.id, filepath=filepath
         )
 
         # 5. Return an INSTANT response to the user
         return {
             "message": "File uploaded. AI processing has started.",
             "file_id": db_file.id,
-            "filename": file.filename
+            "filename": file.filename,
         }
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to save file: {e}")
     finally:
         db.close()
+
 
 @app.post("/search/", response_model=list[SearchResult])
 async def search_documents(query: SearchQuery):
@@ -154,19 +172,22 @@ async def search_documents(query: SearchQuery):
 
         # 3. Search ChromaDB for the most similar vectors
         results = vector_collection.query(
-            query_embeddings=[query_embedding],
-            n_results=query.top_k
+            query_embeddings=[query_embedding], n_results=query.top_k
         )
 
         # 4. Format and return the results
         search_results = []
-        if results['ids']:
-            for i, doc_id in enumerate(results['ids'][0]):
-                search_results.append(SearchResult(
-                    filename=results['metadatas'][0][i]['filename'],
-                    category="Uncategorized", # TODO: Get from SQL DB
-                    score=results['distances'][0][i] # This is the similarity score
-                ))
+        if results["ids"]:
+            for i, doc_id in enumerate(results["ids"][0]):
+                search_results.append(
+                    SearchResult(
+                        filename=results["metadatas"][0][i]["filename"],
+                        category="Uncategorized",  # TODO: Get from SQL DB
+                        score=results["distances"][0][
+                            i
+                        ],  # This is the similarity score
+                    )
+                )
 
         return search_results
 
@@ -178,5 +199,6 @@ async def search_documents(query: SearchQuery):
 if __name__ == "__main__":
     print("Starting FastAPI server...")
     # We need to import torch here to make the GPU work in the background
-    import torch 
+    import torch
+
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
