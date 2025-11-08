@@ -3,6 +3,7 @@ from pydantic import BaseModel
 import uvicorn
 import os
 import shutil
+import torch  # <-- FIXED: Ensure TORCH is imported at the top for global scope
 
 # --- Import from our other files ---
 # We are importing the functions and objects we built
@@ -92,6 +93,7 @@ def process_file_in_background(file_id: int, filepath: str):
 @app.get("/")
 def read_root():
     """Simple status check endpoint."""
+    # This now relies on the 'import torch' being at the very top of the file.
     return {"status": "MetaMinds AI Server is running", "gpu_available": torch.cuda.is_available()}
 
 @app.post("/upload/")
@@ -102,15 +104,15 @@ async def upload_file(
     """
     Uploads a file, saves it, and schedules it for AI processing.
     """
-    # 1. Save the uploaded file to our local disk
-    filepath = os.path.join(UPLOAD_DIR, file.filename)
-    with open(filepath, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-
-    # 2. Get a database session
+    # 1. Get a database session
     db = SessionLocal()
     try:
-        # 3. Create the 'File' record in our SQL database
+        # --- CRITICAL FIX: Save the file inside the try block (and save the database record too) ---
+        filepath = os.path.join(UPLOAD_DIR, file.filename)
+        with open(filepath, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        # 2. Create the 'File' record in our SQL database
         db_file = File(
             filename=file.filename,
             filepath=filepath,
@@ -120,23 +122,26 @@ async def upload_file(
         db.add(db_file)
         db.commit()
         db.refresh(db_file) # Get the new file_id
-
-        # 4. Schedule the HEAVY AI processing to run in the background
+        
+        # 3. Schedule the HEAVY AI processing to run in the background
         background_tasks.add_task(
             process_file_in_background, 
             file_id=db_file.id, 
             filepath=filepath
         )
-
-        # 5. Return an INSTANT response to the user
+        
+        # 4. Return an INSTANT response to the user
         return {
             "message": "File uploaded. AI processing has started.",
             "file_id": db_file.id,
             "filename": file.filename
         }
     except Exception as e:
+        # If any step (file save, DB record, or task scheduling) fails, we crash cleanly.
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to save file: {e}")
+        print(f"\nFATAL UPLOAD/DB ERROR: {e}\n")
+        # In a production app, you might want a more specific error code
+        raise HTTPException(status_code=500, detail=f"Failed to process request: {e}")
     finally:
         db.close()
 
@@ -147,6 +152,7 @@ async def search_documents(query: SearchQuery):
     """
     try:
         # 1. Import the AI model (from processing.py)
+        # We rely on this import to get the already-loaded model instance.
         from processing import model, device
 
         # 2. Convert the user's text query into a vector (on the GPU)
@@ -171,12 +177,12 @@ async def search_documents(query: SearchQuery):
         return search_results
 
     except Exception as e:
+        # Print error for debugging and return standard HTTP 500
+        print(f"\nFATAL SEARCH ERROR: {e}\n")
         raise HTTPException(status_code=500, detail=f"Search failed: {e}")
 
 
 # --- This is the code that runs the server ---
 if __name__ == "__main__":
     print("Starting FastAPI server...")
-    # We need to import torch here to make the GPU work in the background
-    import torch 
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
