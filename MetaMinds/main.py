@@ -9,7 +9,7 @@ from pydantic import BaseModel
 import uvicorn
 import os
 import shutil
-import torch  # <-- FIXED: Ensure TORCH is imported at the top for global scope
+import torch  # <-- Ensure TORCH is imported at the top for global scope
 
 # --- Import from our other files ---
 # We are importing the functions and objects we built
@@ -109,16 +109,11 @@ def process_file_in_background(file_id: int, filepath: str):
 @app.get("/")
 def read_root():
     """Simple status check endpoint."""
-<<<<<<< HEAD
-    # This now relies on the 'import torch' being at the very top of the file.
-    return {"status": "MetaMinds AI Server is running", "gpu_available": torch.cuda.is_available()}
-=======
     return {
         "status": "MetaMinds AI Server is running",
         "gpu_available": torch.cuda.is_available(),
     }
 
->>>>>>> 9972d883a309a961125e3e9a60441ceee026cb51
 
 @app.post("/upload/")
 async def upload_file(
@@ -134,7 +129,7 @@ async def upload_file(
         filepath = os.path.join(UPLOAD_DIR, file.filename)
         with open(filepath, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
-        
+
         # 2. Create the 'File' record in our SQL database
         db_file = File(
             filename=file.filename,
@@ -144,19 +139,13 @@ async def upload_file(
         )
         db.add(db_file)
         db.commit()
-<<<<<<< HEAD
-        db.refresh(db_file) # Get the new file_id
-        
-        # 3. Schedule the HEAVY AI processing to run in the background
-=======
         db.refresh(db_file)  # Get the new file_id
 
-        # 4. Schedule the HEAVY AI processing to run in the background
->>>>>>> 9972d883a309a961125e3e9a60441ceee026cb51
+        # 3. Schedule the HEAVY AI processing to run in the background
         background_tasks.add_task(
             process_file_in_background, file_id=db_file.id, filepath=filepath
         )
-        
+
         # 4. Return an INSTANT response to the user
         return {
             "message": "File uploaded. AI processing has started.",
@@ -167,7 +156,6 @@ async def upload_file(
         # If any step (file save, DB record, or task scheduling) fails, we crash cleanly.
         db.rollback()
         print(f"\nFATAL UPLOAD/DB ERROR: {e}\n")
-        # In a production app, you might want a more specific error code
         raise HTTPException(status_code=500, detail=f"Failed to process request: {e}")
     finally:
         db.close()
@@ -199,9 +187,7 @@ async def search_documents(query: SearchQuery):
                     SearchResult(
                         filename=results["metadatas"][0][i]["filename"],
                         category="Uncategorized",  # TODO: Get from SQL DB
-                        score=results["distances"][0][
-                            i
-                        ],  # This is the similarity score
+                        score=results["distances"][0][i],  # This is the similarity score
                     )
                 )
 
@@ -216,3 +202,4 @@ async def search_documents(query: SearchQuery):
 # --- This is the code that runs the server ---
 if __name__ == "__main__":
     print("Starting FastAPI server...")
+    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
