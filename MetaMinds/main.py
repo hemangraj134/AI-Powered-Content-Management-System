@@ -187,7 +187,9 @@ async def search_documents(query: SearchQuery):
                     SearchResult(
                         filename=results["metadatas"][0][i]["filename"],
                         category="Uncategorized",  # TODO: Get from SQL DB
-                        score=results["distances"][0][i],  # This is the similarity score
+                        score=results["distances"][0][
+                            i
+                        ],  # This is the similarity score
                     )
                 )
 
