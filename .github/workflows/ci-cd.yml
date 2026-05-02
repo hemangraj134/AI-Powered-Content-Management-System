@@ -41,6 +41,8 @@ jobs:
         pip install -r MetaMinds/requirements.txt
         # Install our formatting/linting tools
         pip install flake8 black
+        # Install our testing tools
+        pip install -r requirements-dev.txt
 
     # 5. Run the Linter (Checks for code errors/style)
     - name: Lint with Flake8
@@ -49,14 +51,18 @@ jobs:
         flake8 MetaMinds/ --count --select=E9,F63,F7,F82 --show-source --statistics
         flake8 MetaMinds/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
-    # 6. Run Black to Auto-Format the code
+    # 6. Run PyTest Suite
+    - name: Run PyTest Suite
+      run: pytest tests/ -v
+
+    # 7. Run Black to Auto-Format the code
     - name: Auto-Format with Black
       run: |
         # This command FIXES the files, it doesn't just check
         # We also include the bypass for the server's Python bug
         BLACK_SKIP_AST_SAFETY_CHECK=1 black MetaMinds/
 
-    # 7. Auto-Commit the fix (The "Champion" Move)
+    # 8. Auto-Commit the fix (The "Champion" Move)
     - name: Commit and push formatted files
       uses: stefanzweifel/git-auto-commit-action@v5
       with:
