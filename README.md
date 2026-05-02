@@ -113,6 +113,9 @@ User Request (HTTP)
 | **Word Extraction** | `python-docx` | OOXML document parsing | Latest |
 | **OCR Engine** | `pytesseract` + Tesseract | Image-to-text recognition | v5+ |
 | **Image Processing** | `Pillow` (PIL) | Image manipulation for OCR | Latest |
+| **Automated Testing** | `pytest` + `httpx` | Unit and integration test suite | Latest |
+| **CI/CD Pipeline** | GitHub Actions | Automated linting, formatting, testing | - |
+| **Code Quality** | `flake8` + `black` | Linting and code formatting | Latest |
 
 ---
 
@@ -156,6 +159,9 @@ source .venv/bin/activate
 ```bash
 # Install from requirements.txt (includes PyTorch with CUDA)
 pip install -r MetaMinds/requirements.txt
+
+# Install development/testing dependencies
+pip install -r requirements-dev.txt
 ```
 
 ⚠️ **Note:** This is a large installation (~2-3 GB) including PyTorch GPU libraries. On CPU-only systems, manually uninstall CUDA variants and install CPU versions.
@@ -203,7 +209,97 @@ INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
 
 ---
 
-## 🧪 Testing & Usage
+## 🧪 Testing, Evaluation & Usage
+
+### **Automated Test Suite**
+
+This project implements a **comprehensive pytest suite** with smart mocking to ensure system reliability and API correctness:
+
+#### **Unit & Integration Tests**
+```bash
+pytest tests/ -v
+```
+
+**Test Coverage:**
+- ✅ **API Endpoint Tests** (`test_api.py`)
+  - Health check endpoint validation
+  - Search endpoint response validation
+  - File upload HTTP status codes
+  - JSON response schema validation
+
+- ✅ **AI Pipeline Tests** (`test_processing.py`)
+  - Text extraction from multiple file types
+  - Empty file handling
+  - Embedding vector generation
+  - Unsupported file type handling
+
+- ✅ **Smart Mocking** (`conftest.py`)
+  - Mocks heavy dependencies (SentenceTransformer, ChromaDB) to run without GPU
+  - Mocks binary dependencies (PyMuPDF, Tesseract) for CI/CD environments
+  - Tests run in **<10 seconds** without downloading models or GPU
+
+#### **Why Smart Mocking Matters**
+The `conftest.py` fixture system intercepts module-level imports to mock:
+- `sentence_transformers` — Avoids downloading ~90MB AI model
+- `chromadb` — Prevents disk writes to persistent vector storage
+- `fitz`, `docx`, `pytesseract` — Allows tests in environments without Tesseract binary installed
+
+This enables **fast, reliable CI/CD pipelines** on resource-constrained runners while maintaining full test coverage.
+
+---
+
+### **CI/CD Pipeline**
+
+Every commit triggers automated checks via **GitHub Actions** (`.github/workflows/ci-cd.yml`):
+
+```yaml
+Jobs:
+  1. Lint with Flake8       → Check code quality & style
+  2. Auto-Format with Black → Fix formatting automatically
+  3. Run PyTest Suite       → Execute all tests
+  4. Auto-Commit Changes    → Push formatting fixes back
+```
+
+**Pipeline Behavior:**
+- ✅ Runs on every push to `main` branch
+- ✅ Installs CPU-only PyTorch (GitHub runners have no GPU)
+- ✅ Installs Tesseract OCR for image processing tests
+- ✅ Automatically commits code formatting changes
+- ✅ Prevents broken code from merging
+
+**Workflow Output Example:**
+```
+✅ Linting with Flake8
+   3 errors found, 0 warnings
+
+✅ Running PyTest
+   15 tests passed in 8.2s
+
+✅ Auto-formatting with Black
+   2 files reformatted
+
+✅ Commit & push formatting changes
+```
+
+---
+
+### **Running Tests Locally**
+
+```bash
+# Run all tests with verbose output
+pytest tests/ -v
+
+# Run specific test file
+pytest tests/test_api.py -v
+
+# Run with coverage report
+pytest tests/ --cov=MetaMinds
+
+# Run a single test function
+pytest tests/test_api.py::test_health_check -v
+```
+
+---
 
 ### **Interactive API Documentation**
 
@@ -265,8 +361,10 @@ BACKGROUND TASK: File 3 processed and indexed.
 |--------|-------|
 | **Total Files** | Core API + Processing + Database modules |
 | **Lines of Code** | ~500 LOC (lean, focused implementation) |
-| **Test Coverage** | Pre-loaded test files + interactive API docs |
-| **Dependencies** | 12 core libraries (PyTorch, FastAPI, ChromaDB, etc.) |
+| **Test Suite** | 15+ unit & integration tests |
+| **Test Coverage** | API endpoints + AI pipeline + file handling |
+| **CI/CD Jobs** | 4 (lint, test, format, auto-commit) |
+| **Dependencies** | 15+ core libraries (PyTorch, FastAPI, ChromaDB, etc.) |
 | **Supported Formats** | 4 file types (PDF, DOCX, Images, Text) |
 | **Model Precision** | 384-dimensional embeddings (MiniLM-L6) |
 | **Database Types** | 2 (SQL metadata + Vector store) |
@@ -278,18 +376,27 @@ BACKGROUND TASK: File 3 processed and indexed.
 
 ```
 AI-Powered-Content-Management-System/
+├── .github/
+│   ├── workflows/
+│   │   └── ci-cd.yml              # GitHub Actions CI/CD pipeline
+│   └── CODEOWNERS                 # Repository access control
 ├── MetaMinds/
-│   ├── main.py                 # FastAPI application & endpoints
-│   ├── database.py             # SQL + Vector DB initialization
-│   ├── processing.py           # Text extraction & AI embedding engine
-│   ├── test_gpu.py             # GPU verification utility
-│   ├── test_file_1.txt         # Pre-loaded test file
-│   ├── uploaded_files/         # User-uploaded files (auto-created)
-│   ├── requirements.txt        # Python dependencies
-│   └── chroma_db_store/        # Vector database persistence
-├── metaminds.db                # SQLite metadata database
-├── README.md                   # This file
-└── .gitignore                  # Git ignore rules
+│   ├── main.py                    # FastAPI application & endpoints
+│   ├── database.py                # SQL + Vector DB initialization
+│   ├── processing.py              # Text extraction & AI embedding engine
+│   ├── test_gpu.py                # GPU verification utility
+│   ├── test_file_1.txt            # Pre-loaded test file
+│   ├── uploaded_files/            # User-uploaded files (auto-created)
+│   ├── requirements.txt           # Python dependencies
+│   └── chroma_db_store/           # Vector database persistence
+├── tests/
+│   ├── test_api.py                # FastAPI endpoint tests
+│   ├── test_processing.py         # AI pipeline unit tests
+│   └── conftest.py                # PyTest fixtures & smart mocking
+├── metaminds.db                   # SQLite metadata database
+├── requirements-dev.txt           # Development & testing dependencies
+├── README.md                       # This file
+└── .gitignore                     # Git ignore rules
 ```
 
 ---
@@ -365,11 +472,15 @@ POST /search/
 ✅ **Production Ready** — Includes pre-built databases and test data  
 ✅ **Zero Setup** — Clone, install, run — no database initialization needed  
 ✅ **Comprehensive Documentation** — Interactive Swagger UI + detailed README  
+✅ **Automated Testing** — 15+ tests with pytest & smart mocking  
+✅ **CI/CD Pipeline** — GitHub Actions for automated linting, testing, and formatting  
+✅ **Code Quality** — Black + Flake8 for consistent code standards  
 
 ---
 
 ## 🚀 Future Enhancements
 
+- [ ] **AI Quality Evaluation** — Benchmarks retrieval precision with ground-truth datasets
 - [ ] **Advanced Categorization** — Real AI-based document classification
 - [ ] **Multi-Language Support** — Support for non-English documents
 - [ ] **Batch Processing** — Upload and process multiple files simultaneously
@@ -378,7 +489,6 @@ POST /search/
 - [ ] **Web Dashboard** — Frontend UI for file management
 - [ ] **User Authentication** — Multi-user support with access control
 - [ ] **Advanced Filtering** — Filter by date, category, file type
-- [ ] **API Rate Limiting** — Protect against abuse
 - [ ] **Monitoring Dashboard** — Real-time processing metrics
 
 ---
@@ -415,6 +525,11 @@ FileNotFoundError: tesseract is not installed
   python main.py --port 8001
   ```
 
+### **Issue: "PyTest fails with import errors"**
+**Solution:**
+- Ensure development dependencies are installed: `pip install -r requirements-dev.txt`
+- Run tests from the repository root: `pytest tests/ -v`
+
 ---
 
 ## 📚 Learning Resources
@@ -424,6 +539,8 @@ FileNotFoundError: tesseract is not installed
 - [ChromaDB Documentation](https://docs.trychroma.com/)
 - [Sentence Transformers](https://www.sbert.net/)
 - [SQLAlchemy ORM](https://docs.sqlalchemy.org/en/20/)
+- [PyTest Documentation](https://docs.pytest.org/)
+- [GitHub Actions Documentation](https://docs.github.com/en/actions)
 
 ---
 
@@ -441,6 +558,11 @@ Contributions are welcome! Feel free to:
 - Submit pull requests
 - Improve documentation
 
+**Before submitting a PR:**
+1. Run the test suite locally: `pytest tests/ -v`
+2. Format your code: `black MetaMinds/`
+3. Check linting: `flake8 MetaMinds/`
+
 ---
 
 ## 👨‍💻 Author
@@ -457,6 +579,8 @@ GitHub: [@hemangraj134](https://github.com/hemangraj134)
 - **ChromaDB** for vector database technology
 - **Hugging Face** for pre-trained transformer models
 - **Tesseract** for open-source OCR
+- **pytest** for a robust testing framework
+- **GitHub Actions** for CI/CD automation
 
 ---
 
@@ -471,7 +595,8 @@ For questions, issues, or suggestions:
 
 **Last Updated:** May 2, 2026  
 **Current Version:** v1.0.0  
-**Status:** ✅ Production Ready
+**Status:** ✅ Production Ready  
+**CI/CD Status:** ✅ Passing
 
 [python-shield]: https://img.shields.io/badge/Python-3.12%2B-blue
 [python-url]: https://www.python.org/downloads/
